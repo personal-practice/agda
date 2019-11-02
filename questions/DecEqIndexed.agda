@@ -3,43 +3,42 @@
 --------------------------------------------------------
 module DecEqIndexed where
 
-open import Data.Bool    using (Bool)
-open import Data.Nat     using (ℕ; _≟_)
-open import Data.Product using (_×_; _,_; ∃-syntax; Σ-syntax)
+open import Data.Bool    using (Bool; true; false; _∧_)
+open import Data.Nat     using (ℕ; _≟_; _≡ᵇ_)
+open import Data.Product using (_,_; ∃-syntax)
 
 open import Relation.Nullary                      using (yes; no)
 open import Relation.Binary                       using (Decidable)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
-data S : Set → Set where
-  `_             : ℕ → S ℕ
-  _`=_           : S ℕ → S ℕ → S Bool
+-- Termination checking fails, due to the index being an arbitrary type (i.e. ∈ Set)
+module Fails where
+  infix 3 _`=_
+  data S : Set → Set where
+    `_             : ℕ → S ℕ
+    _`=_           : S ℕ → S ℕ → S Bool
+  ∃S = ∃[ A ] S A
 
-infix 3 _`=_
+  _≡?_ : ∃S → ∃S → Bool
+  (.ℕ , (` x))       ≡? (.ℕ , (` y))         = x ≡ᵇ y
+  (.ℕ , (` _))       ≡? (.Bool , (_ `= _))   = false
+  (.Bool , (_ `= _)) ≡? (.ℕ , (` _))         = false
+  (.Bool , (x `= y)) ≡? (.Bool , (x′ `= y′)) = ((_ , x) ≡? (_ , x′)) ∧ ((_ , y) ≡? (_ , y′))
 
-_ : S Bool
-_ = ` 0 `= ` 1
+-- Works if we replace Set with representation of a fixed universe
+module Succeeds where
+  data Type : Set where
+    `Bool `ℕ : Type
+    _⇒_ : Type → Type → Type
 
-_≟∃ₛ_ : Decidable {A = ∃[ A ] S A} _≡_
-_≟ₛ_ : ∀ {A} → Decidable {A = S A} _≡_
+  infix 3 _`=_
+  data S : Type → Set where
+    `_             : ℕ → S `ℕ
+    _`=_           : S `ℕ → S `ℕ → S `Bool
+  ∃S = ∃[ A ] S A
 
--- Termination checking fails
-(.ℕ , (` x)) ≟∃ₛ (.ℕ , (` x₁))
-  with x ≟ x₁
-... | no ¬p    = no λ{ refl → ¬p refl }
-... | yes refl = yes refl
-(.ℕ , (` x)) ≟∃ₛ (.Bool , (snd₁ `= snd₂)) = no (λ ())
-
-(.Bool , (snd `= snd₂)) ≟∃ₛ (.ℕ , (` x)) = no (λ ())
-(.Bool , (x `= y)) ≟∃ₛ (.Bool , (x′ `= y′))
-  with x ≟ₛ x′ | y ≟ₛ y′
-... | no ¬p     | _        = no λ{ refl → ¬p refl }
-... | _         | no ¬p    = no λ{ refl → ¬p refl }
-... | yes refl  | yes refl = yes refl
-
-_≟ₛ_ {A} x y with (A , x) ≟∃ₛ (A , y)
-... | no ¬p    = no λ{ refl → ¬p refl }
-... | yes refl = yes refl
--- fails with "I'm not sure if there should be a case...'
--- (` x) ≟ₛ y = {!y!}
--- (x `= x₁) ≟ₛ y = {!y!}
+  _≡?_ : ∃S → ∃S → Bool
+  (.`ℕ , (` x))       ≡? (.`ℕ , (` y))         = x ≡ᵇ y
+  (.`ℕ , (` _))       ≡? (.`Bool , (_ `= _))   = false
+  (.`Bool , (_ `= _)) ≡? (.`ℕ , (` _))         = false
+  (.`Bool , (x `= y)) ≡? (.`Bool , (x′ `= y′)) = ((_ , x) ≡? (_ , x′)) ∧ ((_ , y) ≡? (_ , y′))
