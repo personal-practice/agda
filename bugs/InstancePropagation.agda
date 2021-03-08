@@ -1,12 +1,13 @@
-open import Prelude.Init
-open import Prelude.DecEq
+-- https://github.com/agda/agda/issues/5093
+module InstancePropagation where
 
-module InstancePropagation (A : Set) {{_ : DecEq A}} where
+postulate Eq : Set → Set
 
-postulate
-  B : Set
-variable
-  n : B
-postulate
-  P : B → Set
-  p₁ : P n
+module M1 (A : Set) {{_ : Eq A}} where
+  postulate B : Set
+  variable  n : B
+  postulate P : B → Set
+
+module M2 (A : Set) ⦃_ : Eq A⦄ where
+  open M1 A
+  postulate p : P n  -- No instance of type Eq A
