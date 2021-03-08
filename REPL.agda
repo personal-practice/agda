@@ -1,6 +1,8 @@
+-- temporary file to interactively try out Agda stuff
 module REPL where
 
-open import Agda.Builtin.Word
+open import Prelude.Init
+open import Prelude.DecEq
 
-ex : Word64
-ex = {!0##!}
+testUnnamedImplicit : {True (1 ≟ 1 + 0)} → 1 ≡ 1 + 0
+testUnnamedImplicit {p} = toWitness {Q = 1 ≟ 1 + 0} p
