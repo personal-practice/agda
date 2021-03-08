@@ -1,5 +1,5 @@
--- temporary file to interactively try out Moneygda stuff
-module Scratch where
+-- posed by Jacques Carette in [Agda-info] on 1/3/2021
+module SubstPuzzle where
 
 open import Prelude.Init
 

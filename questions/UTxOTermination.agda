@@ -27,6 +27,8 @@ open import Relation.Binary.PropositionalEquality using (_≡_; refl; subst; con
 open import Relation.Binary                       using (Decidable)
 
 open import Prelude.Lists
+open import Prelude.Sets
+open import Prelude.DecEq
 
 {- Generic well-founded recursion
 
@@ -56,8 +58,6 @@ record Node : Set where
     inputs : List HashId
 
 open Node public
-
-open import Prelude.Set' {A = HashId} _≟ℕ_ hiding (_∈_)
 
 DAG = List Node
 
@@ -135,9 +135,6 @@ _≼_ = Suffix≡
 
 _≼′_ : Rel (∃ VDAG) 0ℓ
 (g′ , _) ≼′ (g , _) = g′ ≼ g
-
-postulate
-  suffix-refl : ∀ {A : Set} → (xs : List A) → Suffix≡ xs xs
 
 ≺-transˡ : ∀ {x y z}
   → x ≼ y
