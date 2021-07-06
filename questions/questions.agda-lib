@@ -2,4 +2,5 @@ name: questions
 depend:
   standard-library
   formal-prelude
+  agdarsec
 include: .
