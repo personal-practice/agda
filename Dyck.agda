@@ -1,6 +1,5 @@
 module Dyck where
 
-
 -- | Empty | = 0
 data Empty : Set where
 

@@ -1,10 +1,12 @@
 module Dollar where
 
-open import Function
-open import Data.Product
-open import Data.List
-open import Data.List.Relation.Unary.Any
-open import Relation.Binary.PropositionalEquality
+open import Function using (_$_; _$′_)
+open import Data.List using (List; []; _∷_)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
--- T0D0 find use-case where adding _$_ instead of parentheses leaves unresolved metas
--- c.f. Prelude.Anyable
+open import Data.List.Relation.Unary.Any using (Any; here; there)
+open import Data.List.Relation.Binary.Suffix.Heterogeneous using (Suffix; here; there)
+
+_ : Any (_≡ 2) (1 ∷ 2 ∷ 3 ∷ [])
+-- _ = there $′ here refl
+_ = there $ here refl
