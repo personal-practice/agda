@@ -1,9 +1,34 @@
 module Views where
 
-open import Prelude.Init
-  hiding (_∷ʳ_)
+open import Prelude.Init hiding (_∷ʳ_)
 open import Prelude.DecEq
 open import Prelude.Decidable
+
+open L.Mem
+open L.Perm
+open import Prelude.Lists.Mappings
+
+H : ∀ {x y : ℕ} {xs ys : List ℕ}
+  (xs↭ : xs ↭ y ∷ ys)
+  (x∈ : x ∈ xs)
+  (fys : ys ↦ ℕ)
+  (fy : ℕ) →
+  let f : xs ↦ ℕ
+      f = permute-↦ (↭-sym xs↭) $ cons-↦ y fy fys
+      -- f = cons-↦ y fy fys ∘ ∈-resp-↭ xs↭
+  in
+  --———————————————————————————————————————
+  case ∈-resp-↭ xs↭ x∈ of λ where
+    (here refl) → f x∈ ≡ fy
+    (there y∈)  → f x∈ ≡ fys y∈
+H {x}{y}{xs}{ys} xs↭ x∈ fys fy
+  with ∈-resp-↭ xs↭ x∈ in eq
+... | here refl rewrite ↭-sym-involutive xs↭ | eq = refl
+... | there y∈  rewrite ↭-sym-involutive xs↭ | eq = refl
+
+
+{-
+variable n n′ : ℕ
 
 mutual
   -- infixr 4 _∷_
@@ -17,11 +42,10 @@ mutual
 
   data _∈ᶜ_ : ℕ → Consℕ → Set where
     _∙ : ∀ n {ns} → n ∈ᶜ (n ∷ ns)
-    _∷_ : ∀ n ∈ ns → n ∈ᶜ n′ ∷ ns
-  n ∈ᶜ ns = case ns of λ where
-    (_ ∙) → n ≡ 0
-    (n′ ∷ ns) → ⊎ n ∈
-
+    _∷_ : ∀ n ∈ ns → n ∈ᶜ (n′ ∷ ns)
+  -- n ∈ᶜ ns = case ns of λ where
+  --   (_ ∙) → n ≡ 0
+  --   (n′ ∷ ns) → ⊎ n ∈
 
 _ : Consℕ
 _ = 5 ∷ 4 ∷ 3 ∷ 2 ∷ 1 ∷ 0 ∙
@@ -43,7 +67,8 @@ lemma : ∀ (xs : Consℕ)
   → top xs ≡ 5
     --———————
   → 0 ∈ᶜ xs
-lemma xs top≡ = ?
+lemma xs top≡ = {!!}
+-}
 
 
 

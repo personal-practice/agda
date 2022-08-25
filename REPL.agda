@@ -1,91 +1,80 @@
 -- temporary file to interactively try out Agda stuff
 module REPL where
 
--- open import IO
-
--- main : Main
--- main = run (putStrLn "hello")
-
--- open import Prelude.Init
-
--- f : {impossible : ⊥} → String → ℕ
--- f {impossible = ()}
-
 open import Prelude.Init
+-- open import Prelude.Lists
+-- open import Prelude.DecLists
+-- open import Prelude.DecEq
+-- open import Prelude.Decidable
 
-variable A : Set
+{-
+open import IO
 
-module Simple where
+main : Main
+main = run (putStrLn "hello")
+-}
 
-  data _∈_ (x : A) : List A → Set where
-    here  : ∀ {xs} → x ∈ (x ∷ xs)
-    there : ∀ {y xs} → x ∈ xs → x ∈ (y ∷ xs)
+{-
+data _⊆_ : Rel List where
+  [] :
+    ───────
+    [] ⊆ []
 
-  data Term (s : List String) : Set where
-    var : (x : String) → x ∈ s → Term s
-    lam : (x : String) → ¬ x ∈ s → Term (x ∷ s) → Term s
-    app : Term s → Term s → Term s
+  keep :
+    xs ⊆ ys
+    ────────────────
+    x ∷ xs ⊆ x ∷ ys
 
-  ex∙ : Term []
-  ex∙ = lam "f" (λ ()) (
-          lam "x" (λ where (there ())) (
-            app (var "f" (there here))
-                (var "x" here)
-          )
-        )
+  drop :
+    xs ⊆ ys
+    ────────────────
+    xs ⊆ x ∷ ys
 
-  ex∘ : ∀ (f x : String) → f ≢ x → Term []
-  ex∘ f x f≢x =
-    lam f (λ ()) (
-      lam x (λ where here → ⊥-elim (f≢x refl); (there ())) (
-        app (var f (there here))
-            (var x here)
-      )
-    )
 
-module WellScopedFresh where
+  OPE: [x,y,z,k,l]
+        0 1 0 0 1 : Vec Bool
 
-  data FreshList (A : Set) : Set
-  _#_ : {A : Set} → A → FreshList A → Set
+A:  [ x  ,  y    ,  z ]
+      qr            k
 
-  data FreshList A where
-    []    : FreshList A
-    _∷_<_> : (x : A) (xs : FreshList A) → x # xs → FreshList A
+B:       [q   ,r,   k   ,l]
+B:       [q   ,r,   k   ∅]
+          x    x    z    -
+        x ∈ A  0    2    ∅
+          0
 
-  x # [] = ⊤
-  x # (y ∷ xs < _ >) = x ≢ y × (x # xs)
+ys ⊆ xs = y ∈ ys → x ∈ xs
 
-  data _∈_ {A : Set} (x : A) : FreshList A → Set where
-    here  : ∀ {xs p} → x ∈ (x ∷ xs < p >)
-    there : ∀ {y xs p} → x ∈ xs → x ∈ (y ∷ xs < p >)
+y ∈ ys → Maybe (x ∈ xs)
 
-  Scope = FreshList String
+attackes <?> blockers
 
-  data Term (s : Scope) : Set where
-    var : (x : String) → x ∈ s → Term s
-    lam : (x : String) (p : x # s)
-        → Term (x ∷ s < p >) → Term s
-    app : Term s → Term s → Term s
+  Σ λ bs → bs ⊑ blockers
+         × bs ⊆ attackers
 
-  ex∙ : Term []
-  ex∙ = lam "f" f# (
-         lam "x" x#f (
-           app (var "f" (there here))
-               (var "x" here)
-         )
-       )
-    where
-      f# : "f" # []
-      f# = tt
+  Σ (_⊑ blockers /\ _⊆ attackers)
+-}
 
-      x#f : "x" # ("f" ∷ [] < f# >)
-      x#f = (λ ()) , tt
+-- data X : Set where
+--   ◇ ◆ : X
 
-  ex∘ : ∀ (f x : String) → x ≢ f → Term []
-  ex∘ f x x≢f =
-    lam f tt (
-      lam x (x≢f , tt) (
-        app (var f (there here))
-            (var x here)
-      )
-    )
+-- data IsBlack : X → Set where
+--   instance mk : IsBlack ◆
+
+-- data IsWhite : X → Set where
+--   instance mk : IsWhite ◇
+
+-- -- it : ∀ {A : Set} → {{ _ : A }} → A
+-- -- it ⦃ x ⦄ = x
+
+-- -- _ : IsBlack ◆
+-- -- _ = it
+
+-- -- ** pattern abstraction!!
+-- -- data R : Set where
+
+-- --   RULE :
+-- --     ∀ (x@(k , v) : ℕ × ℕ)
+-- --     → k ≡ 0
+-- --     → v ≡ 0
+-- --     → R
