@@ -1,5 +1,4 @@
-{-# OPTIONS --allow-exec #-}
-{-# OPTIONS -v modelcheck:100 #-}
+{-# OPTIONS --allow-exec -v modelcheck:100 #-}
 open import Agda.Builtin.Reflection.External using (execTC)
 
 open import Prelude.Init
@@ -149,7 +148,7 @@ macro
     (i , x , t) ← getRecordValue body
     let s = "node " ◆ show n ◆ "() returns (" ◆ x ◆ " : " ◆ toCode ty ◆ ");\n"
           ◆ "let\n"
-          ◆ "  " ◆ x ◆ " = " ◆ toCode i ◆ " ->"
+          ◆ "  " ◆ x ◆ " = " ◆ toCode i ◆ " ->\n"
           ◆ "    " ◆ replace ('𝟘' , "(pre " ◆ x ◆ ")") (toCode t) ◆ ";\n"
           ◆ "  " ◆ toCode □/◇ ◆ "\"" ◆ show pn ◆ "\" "
           ◆ replace ('𝟘' , x) (toCode p) ◆ ";\n"
@@ -197,6 +196,7 @@ ReachesZero   = λ i → i ≡ + 0
 ReachesMinus  = λ i → i < + 0
 
 private
+
   _ : □ Counter NoNegatives
   _ = solveWithKind2
 

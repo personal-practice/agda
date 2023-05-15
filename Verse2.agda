@@ -19,9 +19,6 @@ data Primop : Type where
 Var = String
 
 mutual
-  -- data Value : Type
-  -- data Expr : Type
-  -- data ＝Expr : Type
   Values = List Value
 
   data Value : Type where
@@ -79,6 +76,42 @@ isHead = λ where
   (ƛ _ ⇒ _) → ⊤
   (𝕜 _) → ⊤
   _ → ⊥
+
+isConstant? : Decidable¹ isConstant
+isConstant? = λ where
+  (𝕜 _) → yes tt
+  (𝕧 _) → no λ ()
+  (♯ _) → no λ ()
+  ⟨ _ ⟩ → no λ ()
+  (ƛ _ ⇒ _) → no λ ()
+isScalar? : Decidable¹ isScalar
+isScalar? = λ where
+  (𝕧 _) → yes tt
+  (𝕜 _) → yes tt
+  (♯ _) → yes tt
+  ⟨ _ ⟩ → no λ ()
+  (ƛ _ ⇒ _) → no λ ()
+isTup? : Decidable¹ isTup
+isTup? = λ where
+  ⟨ _ ⟩ → yes tt
+  (𝕜 _) → no λ ()
+  (𝕧 _) → no λ ()
+  (♯ _) → no λ ()
+  (ƛ _ ⇒ _) → no λ ()
+isHeap? : Decidable¹ isHeap
+isHeap? = λ where
+  ⟨ _ ⟩ → yes tt
+  (ƛ _ ⇒ _) → yes tt
+  (𝕜 _) → no λ ()
+  (𝕧 _) → no λ ()
+  (♯ _) → no λ ()
+isHead? : Decidable¹ isHead
+isHead? = λ where
+  ⟨ _ ⟩ → yes tt
+  (ƛ _ ⇒ _) → yes tt
+  (𝕜 _) → yes tt
+  (𝕧 _) → no λ ()
+  (♯ _) → no λ ()
 
 _ : Expr
 _ = ∃ "x" ⇒ ≠ (∃ "y" ⇒ `⟨ ⟦ 𝕜2    , 𝕧 "y" ⟧ ⟩) ⨾
@@ -216,6 +249,34 @@ mutual
 
 -- ** Unification rewrite rules
 
+_—↛⟨U-SCALAR⟩_ _—↛⟨U-TUP⟩_ : Rel₀ Value
+_—↛⟨U-SCALAR⟩_ = λ where
+  (𝕜 s) (𝕜 s′) → s ≡ s′
+  _ _ → ⊥
+v —↛⟨U-TUP⟩ v′ = isTup v × isTup v′
+
+_—↛⟨U-SCALAR⟩?_ : Decidable² _—↛⟨U-SCALAR⟩_
+_—↛⟨U-SCALAR⟩?_ = λ where
+  (𝕜 s) → λ where
+    (𝕜 s′) → s ≟ s′
+    (𝕧 _) → no λ ()
+    (♯ _) → no λ ()
+    ⟨ _ ⟩ → no λ ()
+    (ƛ _ ⇒ _) → no λ ()
+  (𝕧 _) _ → no λ ()
+  (♯ _) _ → no λ ()
+  ⟨ _ ⟩ _ → no λ ()
+  (ƛ _ ⇒ _) _ → no λ ()
+
+_—↛⟨U-TUP⟩?_ : Decidable² _—↛⟨U-TUP⟩_
+v —↛⟨U-TUP⟩? v′
+  with isTup? v
+... | no ¬tv = no (¬tv ∘ proj₁)
+... | yes tv
+  with isTup? v′
+... | no ¬tv′ = no (¬tv′ ∘ proj₂)
+... | yes tv′ = yes (tv , tv′)
+
 mutual
   infix 0 _—→_ _≠—→≠_
 
@@ -309,7 +370,10 @@ mutual
     -- choice
 
     CHOOSE : ⦃ _ : cx ≠∙ ⦄ →
-      cx [ e₁ ∣ e₂ ] ≠—→≠ cx [ e₁ ] ∣ cx [ e₂ ]
+      -- cx [ e₁ ∣ e₂ ] ≠—→≠ cx [ e₁ ] ∣ cx [ e₂ ]
+      e ≡ cx [ e₁ ∣ e₂ ]
+      ────────────────────────────
+      e ≠—→≠ cx [ e₁ ] ∣ cx [ e₂ ]
 
   data _—→_ : Rel₀ ＝Expr where
 
@@ -318,9 +382,9 @@ mutual
       ──────────
       ≠ e —→ ≠ e′
 
-    U-FAIL : ⦃ _ : isHead hnf₁ ⦄ ⦃ _ : isHead hnf₂ ⦄ →
-      ∙ ¬ (∃ λ s → (hnf₁ ≡ 𝕜 s) × (hnf₂ ≡ 𝕜 s)) -- no U-SCALAR match
-      ∙ ¬ (isTup hnf₁ × isTup hnf₂) -- no U-TUP match
+    U-FAIL : ⦃ _ : isHead hnf₁ ⦄ ⦃ _ : isHead hnf₂ ⦄
+      → hnf₁ —↛⟨U-SCALAR⟩ hnf₂
+      → hnf₁ —↛⟨U-TUP⟩ hnf₂
         ──────────────────────
         hnf₁ ＝` hnf₂ —→ ≠ fail
 
@@ -377,8 +441,8 @@ for e₁ do⦅ e₂ ⦆ =
 
 open ReflexiveTransitiveClosure _—→_
 
-_ : 𝕜2 ＝` 𝕜3 —→ ≠ fail
-_ = U-FAIL (λ where (_ , refl , ())) proj₁
+-- _ : 𝕜2 ＝` 𝕜3 —→ ≠ fail
+-- _ = U-FAIL (λ where (_ , x , y) → ?) proj₁
 
 private module _ {e} where
   _ : ≠ (⟨ ⟦ 𝕜2 , 𝕜3 ⟧ ⟩ ＝` ⟨ ⟦ 𝕜2 , 𝕜3 ⟧ ⟩ ⨾ e) —↠ ≠ e
@@ -403,3 +467,39 @@ pattern _`+_ x y = ♯ add · ⟨ x ∷ y ∷ [] ⟩
 --     —→⟨ ? ⟩
 --       ≠ (x + y ∣ x + z)
 --     ∎
+
+progress : ∀ e → Dec $ ∃ (e ≠—→≠_)
+progress (` x) = no λ where (e′ , CHOOSE eq) → {!!}
+progress (eu ⨾ e) = {!!}
+progress (∃ x ⇒ e) = {!!}
+progress (fail) = no λ where (_ , e→) → {!e→!}
+progress (e ∣ e′) = {!!}
+progress (v · v′) = {!!}
+progress (one⦅ e ⦆) = {!!}
+progress (for e) = {!!}
+
+progress＝ : ∀ eu → Dec $ ∃ (eu —→_)
+progress＝ (v ＝` v′)
+  with isHead? v
+... | no ¬hdv = no λ where (_ , U-FAIL ⦃ hdv ⦄ _ _) → ¬hdv hdv
+... | yes hdv
+  with isHead? v′
+... | no ¬hdv′ = no λ where (_ , U-FAIL ⦃ _ ⦄ ⦃ hdv′ ⦄ _ _) → ¬hdv′ hdv′
+... | yes hdv′
+  with v —↛⟨U-SCALAR⟩? v′
+... | no ¬p = no λ where (_ , U-FAIL p _) → ¬p p
+... | yes ¬U-SCALAR
+  with v —↛⟨U-TUP⟩? v′
+... | no ¬p = no λ where (_ , U-FAIL _ p) → ¬p p
+... | yes ¬U-TUP
+    = yes (≠ fail , U-FAIL ⦃ hdv ⦄ ⦃ hdv′ ⦄ ¬U-SCALAR ¬U-TUP)
+progress＝ (v ＝ (x ⨾ e)) = no λ ()
+progress＝ (v ＝ (∃ x ⇒ e)) = no λ ()
+progress＝ (v ＝ fail) =  no λ ()
+progress＝ (v ＝ (e ∣ e₁)) = no λ ()
+progress＝ (v ＝ (x · x₁)) = no λ ()
+progress＝ (v ＝ one⦅ e ⦆) = no λ ()
+progress＝ (v ＝ (for e)) = no λ ()
+progress＝ (≠ e) with progress e
+... | yes (_ , e→) = yes (-, ≠ e→)
+... | no ¬p = no λ where (_ , ≠ e→) → ¬p (-, e→)
