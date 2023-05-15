@@ -8,13 +8,13 @@ open Meta
 open import Prelude.Generics
 open Debug ("modelcheck" , 100)
 open import Prelude.Ord
-open import Prelude.Semigroup
+open import Prelude.Semigroup renaming (_◇_ to _◆_)
 open import Prelude.Show
 open import Prelude.Monad
 open import Prelude.DecEq
 open import Prelude.FromList; open import Prelude.ToList
 open import Prelude.Tactics.PostulateIt
-open import Prelude.Nary
+open import Prelude.Nary hiding (_◇_)
 
 private variable A B S : Set
 
@@ -24,8 +24,34 @@ record StateMachine (S : Set) : Set where
         step : S → S
 open StateMachine
 
-Invariant : StateMachine S → Pred₀ S → Set
-Invariant sm P = P (sm .init) × (∀ s → P s → P (sm .step s))
+_∶_ : ∀ {A : Set ℓ} → StateMachine S → (StateMachine S → A) → A
+sm ∶ f = f sm
+
+module LTL (sm : StateMachine S) where
+  private i = sm .init
+
+  _↝_ : Rel₀ S
+  s ↝ s′ = sm .step s ≡ s′
+
+  data _↝⋆_ : Rel S 0ℓ where
+    root : i ↝⋆ i
+    snoc : ∀{s s' s''} → s ↝⋆ s' → s' ↝ s'' → s ↝⋆ s''
+
+  Reachable : Pred₀ S
+  Reachable = i ↝⋆_
+
+  -- safety (always)
+  □ : Pred₀ (Pred₀ S)
+  □ P = ∀ s → Reachable s → P s
+
+  -- liveness (eventually)
+  ◇ : Pred₀ (Pred₀ S)
+  ◇ = λ P → ∃ λ s → Reachable s × P s
+
+data CheckOption : Set where
+  Safety Liveness : CheckOption
+
+private variable s : S
 
 -- ** translation to Kind2 syntax
 record ToCode (A : Set) : Set where
@@ -54,6 +80,7 @@ toCode-binOp n = case show n of λ where
   "_>ᵇ_" → ">"; "_≥ᵇ_" → ">="; "_<ᵇ_" → "<"; "_≤ᵇ_" → "<="
   "_>_" → ">"; "_≥_" → ">="; "_<_" → "<"; "_≤_" → "<="
   "_-_" → "-"
+  "_≡_" → "="
   s → s
 
 instance
@@ -63,7 +90,7 @@ instance
   ToCode-ℤ : ToCode ℤ
   ToCode-ℤ .toCode = λ where
     (Integer.+_ n)     → toCode n
-    (Integer.-[1+_] n) → "-" ◇ toCode n
+    (Integer.-[1+_] n) → "-" ◆ toCode n
 
   ToCode-Float : ToCode Float
   ToCode-Float .toCode = show
@@ -72,7 +99,7 @@ instance
   ToCode-Char .toCode = show
 
   ToCode-String : ToCode String
-  ToCode-String .toCode s = "\"" ◇ show s ◇ "\""
+  ToCode-String .toCode s = "\"" ◆ show s ◆ "\""
 
   ToCode-Literal : ToCode Literal
   ToCode-Literal .toCode = λ where
@@ -89,30 +116,19 @@ instance
     (var n []) → toCode-deBruijn n
     (`pos l) → toCode l
     (`if b then x else y) →
-      "if " ◇ toCode b ◇ " then " ◇ toCode x ◇ " else " ◇ toCode y
+      "if " ◆ toCode b ◆ " then " ◆ toCode x ◆ " else " ◆ toCode y
     t@(def op as) →
       case vArgs as of λ where
         [] → toCode-nullOp op
-        (x ∷ []) → toCode-unOp op ◇ " (" ◇ toCode x ◇ ")"
-        (x ∷ y ∷ []) → toCode x ◇ " " ◇ toCode-binOp op ◇ " " ◇ toCode y
-        (_ ∷ x ∷ y ∷ []) → toCode x ◇ " " ◇ toCode-binOp op ◇ " " ◇ toCode y
+        (x ∷ []) → toCode-unOp op ◆ " (" ◆ toCode x ◆ ")"
+        (x ∷ y ∷ []) → toCode x ◆ " " ◆ toCode-binOp op ◆ " " ◆ toCode y
+        (_ ∷ x ∷ y ∷ []) → toCode x ◆ " " ◆ toCode-binOp op ◆ " " ◆ toCode y
         _ → show t
     t → show t
 
--- ** counter state machine
-State = ℤ
-
-Counter : StateMachine State
-Counter = λ where
-  .init → + 42
-  .step i → if i >ᵇ 0ℤ then i - 1ℤ else 0ℤ
--- Counter = record
---   { init = + 42
---   ; step = λ i → if i >ᵇ 0ℤ then i - 1ℤ else 0ℤ
---   }
-
-NoNegatives : Pred₀ State
-NoNegatives = λ i → ¬ (i < + 0)
+  ToCode-check : ToCode CheckOption
+  ToCode-check .toCode □/◇ =
+    "check " ◆ (case □/◇ of λ where Safety → ""; Liveness → "reachable ")
 
 -- ** reflection
 private postulate
@@ -120,8 +136,7 @@ private postulate
 macro
   solveWithKind2 : Hole → TC ⊤
   solveWithKind2 hole = do
-    (def (quote Invariant) as) ← inferType hole
-      where _ → error "goal type is not an `Invariant`"
+    (□/◇ , as) ← viewLTL hole
     (n ∙ ∷ p@(def pn _) ∷ []) ← return $ vArgs as
       where _ → error "hole should be of type `Invariant _ _`"
     (lam visible (abs _ p)) ← reduce p
@@ -130,21 +145,28 @@ macro
       where _ → error "not of type `StateMachine _`"
     ty ← reduce ty
     function (clause _ _ body ∷ []) ← getDefinition n
-      where _ → error $ show n ◇ " is not defining a record value"
+      where _ → error $ show n ◆ " is not defining a record value"
     (i , x , t) ← getRecordValue body
-    let s = "node " ◇ show n ◇ "() returns (" ◇ x ◇ " : " ◇ toCode ty ◇ ");\n"
-          ◇ "let\n"
-          ◇ "  " ◇ x ◇ " = " ◇ toCode i ◇ " -> \n"
-          ◇ "    " ◇ replace ('𝟘' , "(pre " ◇ x ◇ ")") (toCode t) ◇ ";\n"
-          ◇ "  check \"" ◇ show pn ◇ "\" " ◇ replace ('𝟘' , x) (toCode p) ◇ ";\n"
-          ◇ "tel\n"
+    let s = "node " ◆ show n ◆ "() returns (" ◆ x ◆ " : " ◆ toCode ty ◆ ");\n"
+          ◆ "let\n"
+          ◆ "  " ◆ x ◆ " = " ◆ toCode i ◆ " ->"
+          ◆ "    " ◆ replace ('𝟘' , "(pre " ◆ x ◆ ")") (toCode t) ◆ ";\n"
+          ◆ "  " ◆ toCode □/◇ ◆ "\"" ◆ show pn ◆ "\" "
+          ◆ replace ('𝟘' , x) (toCode p) ◆ ";\n"
+          ◆ "tel\n"
     print s
     (errCode , stdout , _) ← execTC "kind2" ⟦ "--color" , "false" ⟧ s
-    print $ "errCode: " ◇ show errCode
+    print $ "errCode: " ◆ show errCode
     case errCode of λ where
-      20 → print stdout >> unify hole (quote solvedByKind2 ∙)
-      _  → error stdout
+      0 → print stdout >> unify hole (quote solvedByKind2 ∙)
+      _ → error stdout
     where
+      viewLTL : Hole → TC (CheckOption × Args Term)
+      viewLTL hole = inferType hole >>= λ where
+        (def (quote LTL.□)  as) → return (Safety   , (Args Term ∋ as))
+        (def (quote LTL.◇) as) → return (Liveness , (Args Term ∋ as))
+        _ → error "goal type is not an LTL formula"
+
       replace : Char × String → String → String
       replace (c₀ , x) = fromList
                        ∘ concatMap (λ c → if c == c₀ then toList x else [ c ])
@@ -156,7 +178,33 @@ macro
           = return (i , x , t)
       ... | pat-lam (clause _ _ i ∷ clause ((x , _) ∷ []) _ t ∷ []) _
           = return (i , x , t)
-      ... | _ = error $ "not a record value: " ◇ show t
+      ... | _ = error $ "not a record value: " ◆ show t
 
-_ : Invariant Counter NoNegatives
-_ = solveWithKind2
+-- ** counter state machine
+open LTL public
+
+State = ℤ
+
+Counter : StateMachine State
+Counter = λ where
+  .init → + 42
+  .step i → if i >ᵇ 0ℤ then i - 1ℤ else 0ℤ
+
+NoNegatives OnlyPositives ReachesZero ReachesMinus : Pred₀ State
+NoNegatives   = λ i → ¬ (i < + 0)
+OnlyPositives = λ i → i > + 0
+ReachesZero   = λ i → i ≡ + 0
+ReachesMinus  = λ i → i < + 0
+
+private
+  _ : □ Counter NoNegatives
+  _ = solveWithKind2
+
+  _ : ◇ Counter ReachesZero
+  _ = solveWithKind2
+
+  -- _ : □ Counter OnlyPositives
+  -- _ = solveWithKind2
+
+  -- _ : ◇ Counter ReachesMinus
+  -- _ = solveWithKind2
