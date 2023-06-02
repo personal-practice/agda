@@ -198,7 +198,7 @@ ReachesMinus  = λ i → i < + 0
 private
 
   _ : □ Counter NoNegatives
-  _ = solveWithKind2
+  _ = solveWithKind2 -- solveWithKind2
 
   _ : ◇ Counter ReachesZero
   _ = solveWithKind2
@@ -206,5 +206,38 @@ private
   -- _ : □ Counter OnlyPositives
   -- _ = solveWithKind2
 
-  -- _ : ◇ Counter ReachesMinus
-  -- _ = solveWithKind2
+  _ : ◇ Counter ReachesMinus
+  _ = solveWithKind2
+
+-- ** multisig
+-- TODO: inputs via parameters
+-- MultiSig : StateMachine (ℕ × Bool × Bool)
+-- MultiSig = λ where
+--   .init → 42 , false
+--   .step s@(i , commit？ , end？) →
+--     if commit？ then let i′ = Nat.pred i in
+--       (Nat.pred i , commit？ ,
+--     else s
+
+--     else if
+--   if i >ᵇ 0ℤ then i - 1ℤ else 0ℤ
+
+-- NoNegatives OnlyPositives ReachesZero ReachesMinus : Pred₀ State
+-- NoNegatives   = λ i → ¬ (i < + 0)
+-- OnlyPositives = λ i → i > + 0
+-- ReachesZero   = λ i → i ≡ + 0
+-- ReachesMinus  = λ i → i < + 0
+
+-- private
+
+--   _ : □ Counter NoNegatives
+--   _ = solveWithKind2
+
+--   _ : ◇ Counter ReachesZero
+--   _ = solveWithKind2
+
+--   -- _ : □ Counter OnlyPositives
+--   -- _ = solveWithKind2
+
+--   -- _ : ◇ Counter ReachesMinus
+--   -- _ = solveWithKind2
