@@ -23,12 +23,12 @@ module _ (f : A → Maybe B) where
   ∈-mapMaybe⁻ : y ∈ mapMaybe f xs
               → ∃ λ x → (x ∈ xs) × (f x ≡ just y)
   ∈-mapMaybe⁻ {y = y} {xs = x ∷ xs} y∈
-  --   with f x in fx≡
-  -- ... | nothing = map₂ (map₁ there) (∈-mapMaybe⁻ y∈)
-  -- ... | just y′
-    with f x | inspect f x
-  ... | nothing | _ = map₂ (map₁ there) (∈-mapMaybe⁻ y∈)
-  ... | just y′ | ≡.[ fx≡ ]
+  --   with f x | inspect f x
+  -- ... | nothing | _ = map₂ (map₁ there) (∈-mapMaybe⁻ y∈)
+  -- ... | just y′ | ≡.[ fx≡ ]
+    with f x in fx≡
+  ... | nothing = map₂ (map₁ there) (∈-mapMaybe⁻ y∈)
+  ... | just y′
     with y∈
   ... | here refl = x , here refl , fx≡
   ... | there y∈′ = map₂ (map₁ there) (∈-mapMaybe⁻ y∈′)
@@ -37,6 +37,10 @@ module _ (f : A → Maybe B) where
     → f x ≡ nothing
     → Is-there (∈-mapMaybe⁻ y∈ .proj₂ .proj₁)
   ∈-mapMaybe⁻-nothing {x = x} {xs = xs} y∈ fx≡
-    with f x | inspect f x | fx≡
-  ... | nothing | _ | _ = tt
-  ... | just _  | _ | ()
+  --   with f x | inspect f x
+  -- ... | nothing | _ = tt
+  --   with f x in _
+  -- ... | nothing | _ = tt
+    with ∈-mapMaybe⁻ y∈
+  ... | _ , here refl , fx≢ rewrite fx≡ with () ← fx≢
+  ... | _ , there _   , _ = _
