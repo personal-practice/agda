@@ -2,4 +2,7 @@ name: questions
 depend:
   standard-library
   formal-prelude
+  formal-bitcoin
+  formal-bitml
+  formal-bitml-to-bitcoin
 include: .
